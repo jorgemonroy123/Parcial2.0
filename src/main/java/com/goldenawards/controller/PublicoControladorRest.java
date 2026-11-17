@@ -1,5 +1,6 @@
 package com.goldenawards.controller;
 
+import com.goldenawards.config.Estados;
 import com.goldenawards.model.*;
 import com.goldenawards.repository.*;
 import org.springframework.http.ResponseEntity;
@@ -63,7 +64,12 @@ public class PublicoControladorRest {
 
     @PostMapping("/feedback")
     public Feedback feedback(@RequestBody Feedback f) {
+        f.setId(null);
         f.setFecha(LocalDateTime.now());
+        // REQ-MOD-001: el estado de moderacion lo fija el servidor, nunca el cliente
+        f.setEstadoComentario(Estados.estadoInicialComentario(f.getComentario()));
+        f.setModeradoPor(null);
+        f.setModeradoEn(null);
         if (f.getAutorNombre() == null || f.getAutorNombre().isBlank()) f.setAutorNombre("Anónimo");
         edicionRepository.findById(f.getEdicionId()).ifPresent(e -> f.setEdicionNombre(e.getNombre()));
         return feedbackRepository.save(f);

@@ -39,16 +39,35 @@
 
                 <li class="nav-item" sec:authorize="hasRole('ORGANIZADOR')"><a class="nav-link" th:href="@{/organizador/ediciones}">Ediciones</a></li>
                 <li class="nav-item" sec:authorize="hasRole('ORGANIZADOR')"><a class="nav-link" th:href="@{/organizador/nominaciones}">Nominaciones</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ORGANIZADOR')"><a class="nav-link" th:href="@{/organizador/propuestas-perfil}">Propuestas de perfil</a></li>
 
                 <li class="nav-item" sec:authorize="hasRole('VOTANTE')"><a class="nav-link" th:href="@{/votante/votar}">Votar</a></li>
                 <li class="nav-item" sec:authorize="hasRole('VOTANTE')"><a class="nav-link" th:href="@{/votante/historial}">Mi historial</a></li>
 
+                <li class="nav-item" sec:authorize="hasRole('NOMINADO')"><a class="nav-link" th:href="@{/nominado/perfil}">Mi perfil</a></li>
+
                 <li class="nav-item" sec:authorize="hasRole('JURADO')"><a class="nav-link" th:href="@{/jurado/evaluar}">Evaluar</a></li>
                 <li class="nav-item" sec:authorize="hasRole('JURADO')"><a class="nav-link" th:href="@{/jurado/historial}">Mis calificaciones</a></li>
 
-                <li class="nav-item" sec:authorize="hasRole('NOMINADO')"><a class="nav-link" th:href="@{/nominado/perfil}">Mi perfil</a></li>
+                <li class="nav-item" sec:authorize="hasRole('AUDITOR')"><a class="nav-link" th:href="@{/auditor/registros}">Registro</a></li>
+                <li class="nav-item" sec:authorize="hasRole('AUDITOR')"><a class="nav-link" th:href="@{/auditor/anomalias}">Anomalías</a></li>
+
+                <li class="nav-item" sec:authorize="hasRole('PERIODISTA')"><a class="nav-link" th:href="@{/periodista/noticias}">Mis noticias</a></li>
+
+                <li class="nav-item" sec:authorize="hasRole('MODERADOR')"><a class="nav-link" th:href="@{/moderador/comentarios}">Moderación</a></li>
+                <li class="nav-item" sec:authorize="hasRole('REPRESENTANTE')"><a class="nav-link" th:href="@{/representante/perfil}">Mi nominado</a></li>
+                <li class="nav-item" sec:authorize="hasRole('SOPORTE')"><a class="nav-link" th:href="@{/soporte/tickets}">Bandeja</a></li>
 
                 <li class="nav-item"><a class="nav-link" th:href="@{/resultados}">Resultados</a></li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-life-preserver"></i> Ayuda
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" th:href="@{/tickets/nuevo}"><i class="bi bi-plus-circle"></i> Crear ticket</a></li>
+                        <li><a class="dropdown-item" th:href="@{/tickets}"><i class="bi bi-list-check"></i> Mis tickets</a></li>
+                    </ul>
+                </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Público</a>
                     <ul class="dropdown-menu">
@@ -56,6 +75,7 @@
                         <li><a class="dropdown-item" th:href="@{/publico/comparar}">Comparar</a></li>
                         <li><a class="dropdown-item" th:href="@{/publico/estadisticas}">Estadísticas</a></li>
                         <li><a class="dropdown-item" th:href="@{/publico/feedback}">Feedback</a></li>
+                        <li><a class="dropdown-item" th:href="@{/publico/noticias}">Noticias</a></li>
                     </ul>
                 </li>
             </ul>

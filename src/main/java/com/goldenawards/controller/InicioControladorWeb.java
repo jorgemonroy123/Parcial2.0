@@ -1,5 +1,6 @@
 package com.goldenawards.controller;
 
+import com.goldenawards.config.Estados;
 import com.goldenawards.model.Usuario;
 import com.goldenawards.repository.*;
 import org.springframework.security.core.Authentication;
@@ -22,11 +23,18 @@ public class InicioControladorWeb {
     private final NominacionRepository nominacionRepository;
     private final VotoRepository votoRepository;
     private final PuntajeRepository puntajeRepository;
+    private final NoticiaRepository noticiaRepository;
+    private final AuditorControladorRest auditorRest;
+    private final TicketRepository ticketRepository;
+    private final FeedbackRepository feedbackRepository;
+    private final PropuestaPerfilRepository propuestaRepository;
 
     public InicioControladorWeb(UsuarioRepository usuarioRepository, JugadorRepository jugadorRepository,
                                 ParametroRepository parametroRepository, EdicionRepository edicionRepository,
                                 NominacionRepository nominacionRepository, VotoRepository votoRepository,
-                                PuntajeRepository puntajeRepository) {
+                                PuntajeRepository puntajeRepository, NoticiaRepository noticiaRepository,
+                                AuditorControladorRest auditorRest, TicketRepository ticketRepository,
+                                FeedbackRepository feedbackRepository, PropuestaPerfilRepository propuestaRepository) {
         this.usuarioRepository = usuarioRepository;
         this.jugadorRepository = jugadorRepository;
         this.parametroRepository = parametroRepository;
@@ -34,6 +42,11 @@ public class InicioControladorWeb {
         this.nominacionRepository = nominacionRepository;
         this.votoRepository = votoRepository;
         this.puntajeRepository = puntajeRepository;
+        this.noticiaRepository = noticiaRepository;
+        this.auditorRest = auditorRest;
+        this.ticketRepository = ticketRepository;
+        this.feedbackRepository = feedbackRepository;
+        this.propuestaRepository = propuestaRepository;
     }
 
     @GetMapping("/")
@@ -67,6 +80,8 @@ public class InicioControladorWeb {
                 tarjetas.add(tarjeta("Ediciones", edicionRepository.count(), "bi-trophy-fill", "/organizador/ediciones", "Ediciones, categorias y periodos"));
                 tarjetas.add(tarjeta("Nominaciones pendientes", pendientes, "bi-patch-question-fill", "/organizador/nominaciones", "Aprueba o rechaza propuestas"));
                 tarjetas.add(tarjeta("Resultados", edicionRepository.count(), "bi-bar-chart-fill", "/resultados", "Conteo en vivo"));
+                tarjetas.add(tarjeta("Propuestas de perfil", propuestaRepository.findByEstado(Estados.PENDIENTE).size(),
+                        "bi-person-lines-fill", "/organizador/propuestas-perfil", "Cambios propuestos por representantes"));
             }
             case "VOTANTE" -> {
                 rolNombre = "Votante";
@@ -77,21 +92,60 @@ public class InicioControladorWeb {
                 tarjetas.add(tarjeta("Resultados", edicionRepository.findAll().stream().filter(e -> e.isResultadosPublicados()).count(),
                         "bi-bar-chart-fill", "/resultados", "Rankings publicados"));
             }
-            case "JURADO" -> {
-                rolNombre = "Jurado";
-                tarjetas.add(tarjeta("Ediciones por evaluar", edicionRepository.findByEstadoIn(List.of("VOTACION")).size(),
-                        "bi-clipboard2-check-fill", "/jurado/evaluar", "Califica a los nominados de 1 a 10"));
-                tarjetas.add(tarjeta("Mis calificaciones", puntajeRepository.findByJuradoId(u.getId()).size(),
-                        "bi-clock-history", "/jurado/historial", "Tu historial de puntajes"));
-                tarjetas.add(tarjeta("Resultados", edicionRepository.findAll().stream().filter(e -> e.isResultadosPublicados()).count(),
-                        "bi-bar-chart-fill", "/resultados", "Rankings publicados"));
-            }
             case "NOMINADO" -> {
                 rolNombre = "Nominado";
                 long mias = u.getJugadorId() == null ? 0 : nominacionRepository.findByJugadorId(u.getJugadorId()).size();
                 tarjetas.add(tarjeta("Mis nominaciones", mias, "bi-star-fill", "/nominado/perfil", "Tu perfil y tus categorias"));
                 tarjetas.add(tarjeta("Resultados", edicionRepository.findAll().stream().filter(e -> e.isResultadosPublicados()).count(),
                         "bi-bar-chart-fill", "/resultados", "Resultados oficiales"));
+            }
+            case "JURADO" -> {
+                rolNombre = "Jurado";
+                tarjetas.add(tarjeta("Ediciones por evaluar", edicionRepository.findByEstadoIn(List.of("VOTACION")).size(),
+                        "bi-clipboard2-check-fill", "/jurado/evaluar", "Califica a los nominados de 1 a 10"));
+                tarjetas.add(tarjeta("Mis calificaciones", puntajeRepository.findByJuradoId(u.getId()).size(),
+                        "bi-clock-history", "/jurado/historial", "Tu historial de puntajes"));
+                tarjetas.add(tarjeta("Noticias", noticiaRepository.findByEstado("PUBLICADA").size(),
+                        "bi-newspaper", "/publico/noticias", "Lo último del premio"));
+            }
+            case "AUDITOR" -> {
+                rolNombre = "Auditor";
+                tarjetas.add(tarjeta("Registros de votación", auditoriaTotal(), "bi-journal-text",
+                        "/auditor/registros", "Quién votó y cuándo (sin ver por quién)"));
+                tarjetas.add(tarjeta("Anomalías", auditorRest.detectarAnomalias(null).size(), "bi-exclamation-triangle-fill",
+                        "/auditor/anomalias", "Votos duplicados e intentos rechazados"));
+                tarjetas.add(tarjeta("Exportar reporte", auditoriaTotal(), "bi-file-earmark-spreadsheet-fill",
+                        "/auditor/exportar", "Descarga el registro en CSV"));
+            }
+            case "PERIODISTA" -> {
+                rolNombre = "Periodista";
+                tarjetas.add(tarjeta("Mis noticias", noticiaRepository.findByAutorId(u.getId()).size(),
+                        "bi-pencil-square", "/periodista/noticias", "Redacta y publica tus crónicas"));
+                tarjetas.add(tarjeta("Noticias publicadas", noticiaRepository.findByEstado("PUBLICADA").size(),
+                        "bi-newspaper", "/publico/noticias", "Así las ve el público"));
+            }
+            case "MODERADOR" -> {
+                rolNombre = "Moderador";
+                tarjetas.add(tarjeta("Comentarios pendientes", feedbackRepository.findByEstadoComentario(Estados.PENDIENTE).size(),
+                        "bi-shield-check", "/moderador/comentarios", "Aprueba u oculta lo que escribe el público"));
+                tarjetas.add(tarjeta("Noticias", noticiaRepository.findByEstado("PUBLICADA").size(),
+                        "bi-newspaper", "/publico/noticias", "Lo último del premio"));
+            }
+            case "REPRESENTANTE" -> {
+                rolNombre = "Representante del nominado";
+                long pendientes = propuestaRepository.findByRepresentanteId(u.getId()).stream()
+                        .filter(p -> Estados.PENDIENTE.equals(p.getEstado())).count();
+                tarjetas.add(tarjeta("Mi nominado", pendientes, "bi-person-lines-fill", "/representante/perfil",
+                        "Propuestas pendientes de decisión"));
+                tarjetas.add(tarjeta("Noticias", noticiaRepository.findByEstado("PUBLICADA").size(),
+                        "bi-newspaper", "/publico/noticias", "Lo último del premio"));
+            }
+            case "SOPORTE" -> {
+                rolNombre = "Soporte técnico";
+                tarjetas.add(tarjeta("Tickets abiertos", ticketRepository.findByEstado(Estados.TICKET_ABIERTO).size(),
+                        "bi-headset", "/soporte/tickets", "Esperan atención"));
+                tarjetas.add(tarjeta("En atención", ticketRepository.findByEstado(Estados.TICKET_EN_ATENCION).size(),
+                        "bi-hourglass-split", "/soporte/tickets?estado=EN_ATENCION", "Los que estás resolviendo"));
             }
             default -> {
                 rolNombre = "Publico";
@@ -102,10 +156,18 @@ public class InicioControladorWeb {
             }
         }
 
+        // Todos los roles pueden pedir ayuda a Soporte (REQ-SOP-001)
+        tarjetas.add(tarjeta("Mis tickets", ticketRepository.findByCreadoPorId(u.getId()).size(),
+                "bi-life-preserver", "/tickets", "Pide ayuda a Soporte"));
+
         model.addAttribute("usuario", u);
         model.addAttribute("rolNombre", rolNombre);
         model.addAttribute("tarjetas", tarjetas);
         return "panel";
+    }
+
+    private long auditoriaTotal() {
+        return auditorRest.filtrar(null, null, null).size();
     }
 
     private Map<String, Object> tarjeta(String titulo, long valor, String icono, String enlace, String detalle) {

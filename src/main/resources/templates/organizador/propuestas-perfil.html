@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Propuestas de perfil')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+
+<main class="container py-4">
+    <div th:replace="~{fragments/layout :: alertas}"></div>
+
+    <div class="page-header fade-up">
+        <div>
+            <h1 class="page-title"><i class="bi bi-person-lines-fill"></i> Propuestas de perfil</h1>
+            <p class="page-sub">Cambios que proponen los representantes. Al aprobar, el cambio se publica en el perfil del jugador.</p>
+        </div>
+        <div class="btn-group" role="group">
+            <a th:href="@{/organizador/propuestas-perfil(estado='PENDIENTE')}" class="btn btn-outline-gold" th:classappend="${estado == 'PENDIENTE'} ? 'active'">Pendientes</a>
+            <a th:href="@{/organizador/propuestas-perfil(estado='APROBADA')}" class="btn btn-outline-gold" th:classappend="${estado == 'APROBADA'} ? 'active'">Aprobadas</a>
+            <a th:href="@{/organizador/propuestas-perfil(estado='RECHAZADA')}" class="btn btn-outline-gold" th:classappend="${estado == 'RECHAZADA'} ? 'active'">Rechazadas</a>
+        </div>
+    </div>
+
+    <div class="glass p-5 text-center text-secondary" th:if="${#lists.isEmpty(propuestas)}">
+        <i class="bi bi-inbox fs-1 text-gold"></i>
+        <p class="mt-2 mb-0">No hay propuestas en esta vista.</p>
+    </div>
+
+    <div class="mb-4 fade-up" th:each="p : ${propuestas}" th:with="j=${jugadoresPorId[p.jugadorId]}">
+        <div class="glass p-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                    <h5 class="mb-0" th:text="${p.jugadorNombre}">Jugador</h5>
+                    <div class="small text-secondary">
+                        Propuesta de <strong th:text="${p.representanteUsername}">representante</strong> ·
+                        <span th:replace="~{fragments/layout :: fecha(${p.fecha})}"></span>
+                    </div>
+                </div>
+                <span th:replace="~{fragments/layout :: estadoNominacion(${p.estado})}"></span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-3">
+                    <thead><tr><th></th><th>Perfil actual</th><th>Propuesto</th></tr></thead>
+                    <tbody>
+                    <tr><th>Biografía</th>
+                        <td class="small" th:text="${j != null ? j.biografia : '—'}">actual</td>
+                        <td class="small fw-semibold" th:text="${p.biografia}">propuesta</td></tr>
+                    <tr><th>Partidos</th><td th:text="${j != null ? j.partidos : '—'}">0</td><td class="fw-semibold" th:text="${p.partidos}">0</td></tr>
+                    <tr><th>Goles</th><td th:text="${j != null ? j.goles : '—'}">0</td><td class="fw-semibold" th:text="${p.goles}">0</td></tr>
+                    <tr><th>Asistencias</th><td th:text="${j != null ? j.asistencias : '—'}">0</td><td class="fw-semibold" th:text="${p.asistencias}">0</td></tr>
+                    <tr><th>Trofeos</th><td th:text="${j != null ? j.trofeos : '—'}">0</td><td class="fw-semibold" th:text="${p.trofeos}">0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <form th:if="${p.estado == 'PENDIENTE'}" th:action="@{/organizador/propuestas-perfil/{id}/estado(id=${p.id})}"
+                  method="post" class="row g-2 align-items-center">
+                <input type="hidden" name="filtro" th:value="${estado}">
+                <div class="col-md-6">
+                    <input type="text" class="form-control form-control-sm" name="motivo" maxlength="200"
+                           placeholder="Motivo (opcional, útil al rechazar)">
+                </div>
+                <div class="col-md-6 d-flex gap-2">
+                    <button type="submit" name="estado" value="APROBADA" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-check-lg"></i> Aprobar y publicar</button>
+                    <button type="submit" name="estado" value="RECHAZADA" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-x-lg"></i> Rechazar</button>
+                </div>
+            </form>
+            <div class="small text-secondary" th:if="${p.estado != 'PENDIENTE'}">
+                Decidida por <strong th:text="${p.decididoPor}">organizador</strong> ·
+                <span th:replace="~{fragments/layout :: fecha(${p.decididoEn})}"></span>
+                <span th:if="${p.motivo != null}" th:text="' · Motivo: ' + ${p.motivo}"></span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

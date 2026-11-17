@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Crear ticket')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+
+<main class="container py-4" style="max-width: 720px;">
+    <div th:replace="~{fragments/layout :: alertas}"></div>
+
+    <a th:href="@{/tickets}" class="btn btn-sm btn-outline-gold mb-3"><i class="bi bi-arrow-left"></i> Mis tickets</a>
+
+    <div class="page-header fade-up">
+        <div>
+            <h1 class="page-title"><i class="bi bi-plus-circle"></i> Crear ticket</h1>
+            <p class="page-sub">Cuéntale a Soporte técnico qué necesitas. Disponible para todos los roles.</p>
+        </div>
+    </div>
+
+    <form class="glass p-4 fade-up" method="post" th:action="@{/tickets/crear}">
+        <div class="mb-3">
+            <label class="form-label">Asunto</label>
+            <input type="text" class="form-control" name="asunto" maxlength="100" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea class="form-control" name="descripcion" rows="6" maxlength="1000" required
+                      placeholder="¿Qué pasó? ¿En qué pantalla? ¿Qué esperabas que ocurriera?"></textarea>
+            <div class="form-text">No escribas contraseñas ni datos personales.</div>
+        </div>
+        <button type="submit" class="btn btn-gold"><i class="bi bi-send-fill"></i> Enviar a Soporte</button>
+    </form>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

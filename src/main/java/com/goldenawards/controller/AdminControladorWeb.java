@@ -19,26 +19,29 @@ import java.util.stream.Collectors;
 @RequestMapping("/admin")
 public class AdminControladorWeb {
 
-    private static final List<String> ROLES = List.of("ADMIN", "ORGANIZADOR", "VOTANTE", "NOMINADO", "JURADO", "PUBLICO");
+    private static final List<String> ROLES = List.of("ADMIN", "ORGANIZADOR", "VOTANTE", "NOMINADO", "JURADO",
+            "AUDITOR", "MODERADOR", "PERIODISTA", "REPRESENTANTE", "SOPORTE", "PUBLICO");
+
+    // Los roles NOMINADO y REPRESENTANTE deben estar vinculados a un jugador del catalogo
+    private boolean necesitaJugador(String rol) {
+        return "NOMINADO".equals(rol) || "REPRESENTANTE".equals(rol);
+    }
 
     private final UsuarioRepository usuarioRepository;
     private final JugadorRepository jugadorRepository;
     private final ParametroRepository parametroRepository;
     private final NominacionRepository nominacionRepository;
     private final VotoRepository votoRepository;
-    private final PuntajeRepository puntajeRepository;
     private final PasswordEncoder passwordEncoder;
 
     public AdminControladorWeb(UsuarioRepository usuarioRepository, JugadorRepository jugadorRepository,
                                ParametroRepository parametroRepository, NominacionRepository nominacionRepository,
-                               VotoRepository votoRepository, PuntajeRepository puntajeRepository,
-                               PasswordEncoder passwordEncoder) {
+                               VotoRepository votoRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.jugadorRepository = jugadorRepository;
         this.parametroRepository = parametroRepository;
         this.nominacionRepository = nominacionRepository;
         this.votoRepository = votoRepository;
-        this.puntajeRepository = puntajeRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -76,8 +79,8 @@ public class AdminControladorWeb {
         if (!ROLES.contains(rol)) {
             return resultado(ra, false, "Rol no valido", destino);
         }
-        if ("NOMINADO".equals(rol) && (jugadorId == null || jugadorId.isBlank())) {
-            return resultado(ra, false, "Un usuario NOMINADO debe estar asociado a un jugador", destino);
+        if (necesitaJugador(rol) && (jugadorId == null || jugadorId.isBlank())) {
+            return resultado(ra, false, "Un usuario NOMINADO o REPRESENTANTE debe estar asociado a un jugador", destino);
         }
         Optional<Usuario> existente = usuarioRepository.findByUsername(username);
         if (existente.isPresent() && (esNuevo || !existente.get().getId().equals(id))) {
@@ -103,7 +106,7 @@ public class AdminControladorWeb {
         u.setNombre(nombre.trim());
         u.setUsername(username);
         u.setRol(rol);
-        u.setJugadorId("NOMINADO".equals(rol) ? jugadorId : null);
+        u.setJugadorId(necesitaJugador(rol) ? jugadorId : null);
         u.setActivo(activo);
         if (password != null && !password.isBlank()) {
             u.setPassword(passwordEncoder.encode(password));
@@ -122,9 +125,8 @@ public class AdminControladorWeb {
         if (u.getUsername().equals(principal.getName())) {
             return resultado(ra, false, "No puedes eliminar tu propia cuenta", destino);
         }
-        if (!votoRepository.findByVotanteId(id).isEmpty() || !nominacionRepository.findByPropuestoPorId(id).isEmpty()
-                || !puntajeRepository.findByJuradoId(id).isEmpty()) {
-            return resultado(ra, false, "El usuario tiene votos, calificaciones o nominaciones registradas; desactivalo en lugar de eliminarlo", destino);
+        if (!votoRepository.findByVotanteId(id).isEmpty() || !nominacionRepository.findByPropuestoPorId(id).isEmpty()) {
+            return resultado(ra, false, "El usuario tiene votos o nominaciones registradas; desactivalo en lugar de eliminarlo", destino);
         }
         usuarioRepository.deleteById(id);
         return resultado(ra, true, "Usuario eliminado", destino);
@@ -171,7 +173,7 @@ public class AdminControladorWeb {
             return resultado(ra, false, "Jugador no encontrado", destino);
         }
         boolean nominado = !nominacionRepository.findByJugadorId(id).isEmpty();
-        boolean asociado = usuarioRepository.findByRol("NOMINADO").stream().anyMatch(u -> id.equals(u.getJugadorId()));
+        boolean asociado = usuarioRepository.findAll().stream().anyMatch(u -> id.equals(u.getJugadorId()));
         if (nominado || asociado) {
             return resultado(ra, false, "El jugador tiene nominaciones o un usuario asociado; no se puede eliminar", destino);
         }

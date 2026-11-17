@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selRol.addEventListener('change', function () {
             var campo = document.getElementById('campoJugador');
             var sel = document.querySelector('#modalUsuario [name=jugadorId]');
-            var esNominado = selRol.value === 'NOMINADO';
+            var esNominado = selRol.value === 'NOMINADO' || selRol.value === 'REPRESENTANTE';
             campo.style.display = esNominado ? 'block' : 'none';
             sel.required = esNominado;
             if (!esNominado) sel.value = '';

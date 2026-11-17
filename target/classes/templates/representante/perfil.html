@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Mi nominado')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+
+<main class="container py-4">
+    <div th:replace="~{fragments/layout :: alertas}"></div>
+
+    <div class="glass p-5 text-center text-secondary" th:if="${jugador == null}">
+        Tu usuario no está vinculado a ningún nominado. Pide al Administrador que lo vincule.
+    </div>
+
+    <div th:if="${jugador != null}">
+        <div class="page-header fade-up">
+            <div>
+                <h1 class="page-title"><i class="bi bi-person-lines-fill"></i> <span th:text="${jugador.nombre}">Nominado</span></h1>
+                <p class="page-sub">
+                    <span th:text="${jugador.equipo}">Equipo</span> · <span th:text="${jugador.pais}">País</span> ·
+                    <span th:text="${jugador.posicion}">Posición</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7 fade-up">
+                <form class="glass p-4" method="post" th:action="@{/representante/propuestas}">
+                    <h5 class="mb-1">Proponer cambios al perfil</h5>
+                    <p class="small text-secondary">El perfil público <strong>no cambia</strong> hasta que el Organizador apruebe tu propuesta.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Biografía</label>
+                        <textarea class="form-control" name="biografia" rows="4" maxlength="1000"
+                                  th:text="${jugador.biografia}"></textarea>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-md-3"><label class="form-label small">Partidos</label>
+                            <input type="number" min="0" max="9999" class="form-control" name="partidos" th:value="${jugador.partidos}"></div>
+                        <div class="col-6 col-md-3"><label class="form-label small">Goles</label>
+                            <input type="number" min="0" max="9999" class="form-control" name="goles" th:value="${jugador.goles}"></div>
+                        <div class="col-6 col-md-3"><label class="form-label small">Asistencias</label>
+                            <input type="number" min="0" max="9999" class="form-control" name="asistencias" th:value="${jugador.asistencias}"></div>
+                        <div class="col-6 col-md-3"><label class="form-label small">Trofeos</label>
+                            <input type="number" min="0" max="9999" class="form-control" name="trofeos" th:value="${jugador.trofeos}"></div>
+                    </div>
+                    <button type="submit" class="btn btn-gold"><i class="bi bi-send-fill"></i> Enviar propuesta</button>
+                </form>
+            </div>
+
+            <div class="col-lg-5 fade-up">
+                <h5 class="mb-3">Mis propuestas</h5>
+                <div class="glass p-3 mb-2" th:each="p : ${propuestas}">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small text-secondary"><span th:replace="~{fragments/layout :: fecha(${p.fecha})}"></span></span>
+                        <span th:replace="~{fragments/layout :: estadoNominacion(${p.estado})}"></span>
+                    </div>
+                    <div class="small" th:if="${p.decididoPor != null}">
+                        Decidida por <strong th:text="${p.decididoPor}">organizador</strong> ·
+                        <span th:replace="~{fragments/layout :: fecha(${p.decididoEn})}"></span>
+                    </div>
+                    <div class="small text-secondary" th:if="${p.motivo != null}" th:text="'Motivo: ' + ${p.motivo}">Motivo</div>
+                </div>
+                <p class="small text-secondary" th:if="${#lists.isEmpty(propuestas)}">Aún no has enviado propuestas.</p>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

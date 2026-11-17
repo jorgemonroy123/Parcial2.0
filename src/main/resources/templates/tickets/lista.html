@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Mis tickets')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+
+<main class="container py-4">
+    <div th:replace="~{fragments/layout :: alertas}"></div>
+
+    <div class="page-header fade-up">
+        <div>
+            <h1 class="page-title"><i class="bi bi-life-preserver"></i> Mis tickets</h1>
+            <p class="page-sub">Tus solicitudes a Soporte técnico. Solo tú puedes verlas.</p>
+        </div>
+        <a th:href="@{/tickets/nuevo}" class="btn btn-gold"><i class="bi bi-plus-lg"></i> Crear ticket</a>
+    </div>
+
+    <div class="glass overflow-hidden fade-up">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Asunto</th><th>Estado</th><th>Creado</th><th>Última actualización</th></tr></thead>
+                <tbody>
+                <tr th:each="t : ${tickets}"
+                    th:with="ult=${#lists.isEmpty(t.historial) ? null : t.historial[t.historial.size() - 1]}">
+                    <td>
+                        <details>
+                            <summary class="fw-semibold" th:text="${t.asunto}">Asunto</summary>
+                            <p class="small mt-2 mb-2" style="white-space: pre-line;" th:text="${t.descripcion}">Descripción</p>
+                            <ul class="small text-secondary ps-3 mb-0">
+                                <li th:each="h : ${t.historial}">
+                                    <span th:text="${h.estado == 'ABIERTO' ? 'Abierto' : (h.estado == 'EN_ATENCION' ? 'En atención' : 'Resuelto')}">Estado</span>
+                                    · <span th:replace="~{fragments/layout :: fecha(${h.fecha})}"></span>
+                                    · <span th:text="${h.responsable}">usuario</span>
+                                </li>
+                            </ul>
+                        </details>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill badge-estado" th:classappend="'estado-' + ${#strings.toLowerCase(t.estado)}"
+                              th:text="${t.estado == 'ABIERTO' ? 'Abierto' : (t.estado == 'EN_ATENCION' ? 'En atención' : 'Resuelto')}">Abierto</span>
+                    </td>
+                    <td class="small text-secondary"><span th:replace="~{fragments/layout :: fecha(${t.fechaCreacion})}"></span></td>
+                    <td class="small text-secondary">
+                        <span th:if="${ult != null}"><span th:replace="~{fragments/layout :: fecha(${ult.fecha})}"></span></span>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(tickets)}">
+                    <td colspan="4" class="text-center text-secondary py-4">Aún no has creado tickets.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

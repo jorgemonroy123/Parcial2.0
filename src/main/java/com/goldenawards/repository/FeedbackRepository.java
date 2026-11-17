@@ -8,4 +8,5 @@ import java.util.List;
 public interface FeedbackRepository extends MongoRepository<Feedback, String> {
     List<Feedback> findByEdicionIdOrderByFechaDesc(String edicionId);
     List<Feedback> findAllByOrderByFechaDesc();
+    List<Feedback> findByEstadoComentario(String estadoComentario);
 }

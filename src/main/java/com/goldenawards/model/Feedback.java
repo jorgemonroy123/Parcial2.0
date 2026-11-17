@@ -16,6 +16,10 @@ public class Feedback {
     private String comentario;
     private String autorNombre; // opcional / anónimo
     private LocalDateTime fecha;
+    // Moderacion del comentario (REQ-MOD-001/002): PENDIENTE -> APROBADA | RECHAZADA (oculto)
+    private String estadoComentario;
+    private String moderadoPor;
+    private LocalDateTime moderadoEn;
 
     public Feedback() {}
 
@@ -33,4 +37,10 @@ public class Feedback {
     public void setAutorNombre(String autorNombre) { this.autorNombre = autorNombre; }
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
+    public String getEstadoComentario() { return estadoComentario; }
+    public void setEstadoComentario(String estadoComentario) { this.estadoComentario = estadoComentario; }
+    public String getModeradoPor() { return moderadoPor; }
+    public void setModeradoPor(String moderadoPor) { this.moderadoPor = moderadoPor; }
+    public LocalDateTime getModeradoEn() { return moderadoEn; }
+    public void setModeradoEn(LocalDateTime moderadoEn) { this.moderadoEn = moderadoEn; }
 }

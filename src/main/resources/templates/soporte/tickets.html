@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Bandeja de soporte')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+
+<main class="container py-4">
+    <div th:replace="~{fragments/layout :: alertas}"></div>
+
+    <div class="page-header fade-up">
+        <div>
+            <h1 class="page-title"><i class="bi bi-headset"></i> Bandeja de soporte</h1>
+            <p class="page-sub">Atiende los tickets de todos los usuarios. Cada cambio de estado guarda la fecha y quién lo hizo.</p>
+        </div>
+        <div class="btn-group" role="group">
+            <a th:href="@{/soporte/tickets}" class="btn btn-outline-gold" th:classappend="${estado == ''} ? 'active'">Todos</a>
+            <a th:href="@{/soporte/tickets(estado='ABIERTO')}" class="btn btn-outline-gold" th:classappend="${estado == 'ABIERTO'} ? 'active'">Abiertos</a>
+            <a th:href="@{/soporte/tickets(estado='EN_ATENCION')}" class="btn btn-outline-gold" th:classappend="${estado == 'EN_ATENCION'} ? 'active'">En atención</a>
+            <a th:href="@{/soporte/tickets(estado='RESUELTO')}" class="btn btn-outline-gold" th:classappend="${estado == 'RESUELTO'} ? 'active'">Resueltos</a>
+        </div>
+    </div>
+
+    <div class="glass overflow-hidden fade-up">
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Solicitante</th><th>Ticket</th><th>Estado</th><th>Creado</th><th class="text-end">Acciones</th></tr></thead>
+                <tbody>
+                <tr th:each="t : ${tickets}">
+                    <td>
+                        <div class="fw-semibold" th:text="${t.creadoPorUsername}">usuario</div>
+                        <span class="badge rounded-pill role-pill" th:text="${t.creadoPorRol}">ROL</span>
+                    </td>
+                    <td>
+                        <details>
+                            <summary class="fw-semibold" th:text="${t.asunto}">Asunto</summary>
+                            <p class="small mt-2 mb-2" style="white-space: pre-line;" th:text="${t.descripcion}">Descripción</p>
+                            <ul class="small text-secondary ps-3 mb-0">
+                                <li th:each="h : ${t.historial}">
+                                    <span th:text="${h.estado == 'ABIERTO' ? 'Abierto' : (h.estado == 'EN_ATENCION' ? 'En atención' : 'Resuelto')}">Estado</span>
+                                    · <span th:replace="~{fragments/layout :: fecha(${h.fecha})}"></span>
+                                    · <span th:text="${h.responsable}">usuario</span>
+                                </li>
+                            </ul>
+                        </details>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill badge-estado" th:classappend="'estado-' + ${#strings.toLowerCase(t.estado)}"
+                              th:text="${t.estado == 'ABIERTO' ? 'Abierto' : (t.estado == 'EN_ATENCION' ? 'En atención' : 'Resuelto')}">Abierto</span>
+                    </td>
+                    <td class="small text-secondary"><span th:replace="~{fragments/layout :: fecha(${t.fechaCreacion})}"></span></td>
+                    <td class="text-end">
+                        <form th:action="@{/soporte/tickets/{id}/estado(id=${t.id})}" method="post" class="d-inline">
+                            <input type="hidden" name="filtro" th:value="${estado}">
+                            <button type="submit" name="estado" value="EN_ATENCION" class="btn btn-sm btn-outline-info"
+                                    th:if="${t.estado != 'EN_ATENCION'}">
+                                <i class="bi bi-play-fill"></i> <span th:text="${t.estado == 'RESUELTO' ? 'Reabrir' : 'Atender'}">Atender</span>
+                            </button>
+                            <button type="submit" name="estado" value="RESUELTO" class="btn btn-sm btn-outline-success"
+                                    th:if="${t.estado != 'RESUELTO'}">
+                                <i class="bi bi-check-lg"></i> Resolver
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(tickets)}">
+                    <td colspan="5" class="text-center text-secondary py-4">No hay tickets en esta vista.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

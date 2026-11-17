@@ -7,9 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 // Carga datos de prueba la primera vez que la base de datos esta vacia
 @Component
@@ -23,13 +21,20 @@ public class DataInitializer implements CommandLineRunner {
     private final VotoRepository votos;
     private final ParametroRepository parametros;
     private final PuntajeRepository puntajes;
+    private final RegistroAuditoriaRepository auditoria;
+    private final NoticiaRepository noticias;
+    private final FeedbackRepository feedbacks;
+    private final TicketRepository tickets;
+    private final PropuestaPerfilRepository propuestas;
     private final PasswordEncoder encoder;
 
     public DataInitializer(UsuarioRepository usuarios, JugadorRepository jugadores,
                            EdicionRepository ediciones, CategoriaRepository categorias,
                            NominacionRepository nominaciones, VotoRepository votos,
                            ParametroRepository parametros, PuntajeRepository puntajes,
-                           PasswordEncoder encoder) {
+                           RegistroAuditoriaRepository auditoria, NoticiaRepository noticias,
+                           FeedbackRepository feedbacks, TicketRepository tickets,
+                           PropuestaPerfilRepository propuestas, PasswordEncoder encoder) {
         this.usuarios = usuarios;
         this.jugadores = jugadores;
         this.ediciones = ediciones;
@@ -38,6 +43,11 @@ public class DataInitializer implements CommandLineRunner {
         this.votos = votos;
         this.parametros = parametros;
         this.puntajes = puntajes;
+        this.auditoria = auditoria;
+        this.noticias = noticias;
+        this.feedbacks = feedbacks;
+        this.tickets = tickets;
+        this.propuestas = propuestas;
         this.encoder = encoder;
     }
 
@@ -46,8 +56,14 @@ public class DataInitializer implements CommandLineRunner {
         if (usuarios.count() == 0) {
             sembrarDatosBase();
         }
-        // Se ejecuta siempre: agrega el rol JURADO tambien a bases de datos que ya tenian datos
-        asegurarJurado();
+        // Se ejecutan siempre y solo agregan lo que falta (sirve tambien para bases que ya tenian datos)
+        asegurarUsuariosDePrueba();
+        migrarAuditoria();
+        sembrarNoticias();
+        // Sprint 2
+        vincularRepresentante();
+        migrarComentarios();
+        sembrarDemoSprint2();
     }
 
     private void sembrarDatosBase() {
@@ -133,66 +149,188 @@ public class DataInitializer implements CommandLineRunner {
         votos.save(voto(e26, b26, m1, votante3));
     }
 
-    // Crea (solo si faltan) el parametro del peso del jurado, los usuarios jurado y calificaciones de ejemplo
-    private void asegurarJurado() {
-        if (parametros.findByClave(Ponderacion.CLAVE_PESO).isEmpty()) {
-            parametros.save(parametro(Ponderacion.CLAVE_PESO, String.valueOf(Ponderacion.PESO_POR_DEFECTO),
-                    "Porcentaje (0-100) que pesa la calificacion del jurado en el ranking final"));
-        }
-        Usuario jurado = usuarios.findByUsername("jurado").orElse(null);
-        if (jurado == null) {
-            jurado = usuarios.save(usuario("Juana Jurado", "jurado", "jurado123", "JURADO", null));
-        }
-        Usuario jurado2 = usuarios.findByUsername("jurado2").orElse(null);
-        if (jurado2 == null) {
-            jurado2 = usuarios.save(usuario("Julian Experto", "jurado2", "jurado123", "JURADO", null));
-        }
-        if (puntajes.count() == 0) {
-            sembrarPuntajes(jurado, jurado2);
-        }
-    }
-
-    // Calificaciones de demostracion sobre la edicion 2025 (cerrada) para ver el ranking combinado
-    private void sembrarPuntajes(Usuario jurado, Usuario jurado2) {
-        Edicion e25 = ediciones.findAll().stream().filter(e -> e.getAnio() == 2025).findFirst().orElse(null);
-        if (e25 == null) {
+    // Sprint 2: el representante de prueba queda vinculado al mismo jugador que el usuario "nominado" (REQ-REP-003)
+    private void vincularRepresentante() {
+        Usuario representante = usuarios.findByUsername("representante").orElse(null);
+        if (representante == null || representante.getJugadorId() != null) {
             return;
         }
-        Map<String, int[]> notas = new HashMap<>();
-        notas.put("Mateo Rivera", new int[]{9, 8});
-        notas.put("Lucas Ferrante", new int[]{8, 9});
-        notas.put("Hugo Valverde", new int[]{6, 7});
-        notas.put("Diego Salazar", new int[]{9, 8});
-        notas.put("Leandro Brito", new int[]{7, 7});
-        notas.put("Tomas Aranda", new int[]{8, 9});
-        notas.put("Emil Lindqvist", new int[]{7, 6});
-        notas.put("Yuki Tanabe", new int[]{6, 7});
+        usuarios.findByUsername("nominado")
+                .map(Usuario::getJugadorId)
+                .ifPresent(jugadorId -> {
+                    representante.setJugadorId(jugadorId);
+                    usuarios.save(representante);
+                });
+    }
 
-        Map<String, String> nombrePorJugador = new HashMap<>();
-        for (Jugador j : jugadores.findAll()) {
-            nombrePorJugador.put(j.getId(), j.getNombre());
-        }
-        List<Nominacion> aprobadas = nominaciones.findByEdicionIdAndEstado(e25.getId(), "APROBADA");
-        for (Nominacion n : aprobadas) {
-            int[] par = notas.get(nombrePorJugador.get(n.getJugadorId()));
-            if (par == null) {
-                continue;
+    // Sprint 2: los comentarios que ya existian nunca fueron moderados, asi que quedan PENDIENTES (REQ-MOD-001)
+    private void migrarComentarios() {
+        for (Feedback f : feedbacks.findAll()) {
+            if (Estados.tieneComentario(f) && f.getEstadoComentario() == null) {
+                f.setEstadoComentario(Estados.PENDIENTE);
+                feedbacks.save(f);
             }
-            puntajes.save(puntaje(n, jurado, par[0], "Gran temporada."));
-            puntajes.save(puntaje(n, jurado2, par[1], ""));
         }
     }
 
-    private Puntaje puntaje(Nominacion n, Usuario jurado, int valor, String comentario) {
-        Puntaje p = new Puntaje();
-        p.setEdicionId(n.getEdicionId());
-        p.setCategoriaId(n.getCategoriaId());
-        p.setNominacionId(n.getId());
-        p.setJuradoId(jurado.getId());
-        p.setPuntaje(valor);
-        p.setComentario(comentario);
-        p.setFecha(LocalDateTime.now());
-        return p;
+    // Sprint 2: datos de demostracion para ver las bandejas (solo si las colecciones estan vacias)
+    private void sembrarDemoSprint2() {
+        if (feedbacks.count() == 0) {
+            Edicion reciente = ediciones.findAll().stream().max(Comparator.comparingInt(Edicion::getAnio)).orElse(null);
+            if (reciente != null) {
+                feedbacks.save(comentarioDemo(reciente, 5, "Excelente organización, todo muy claro.", "Camila", Estados.APROBADA));
+                feedbacks.save(comentarioDemo(reciente, 4, "Buena gala, aunque la votación podría durar más días.", "Andrés", Estados.PENDIENTE));
+                feedbacks.save(comentarioDemo(reciente, 2, "Comentario de prueba para ocultar.", "Anónimo", Estados.PENDIENTE));
+            }
+        }
+        if (tickets.count() == 0) {
+            Usuario votante = usuarios.findByUsername("votante").orElse(null);
+            if (votante != null) {
+                Ticket t = new Ticket();
+                t.setAsunto("No veo mi historial de votos");
+                t.setDescripcion("Entro a Mi historial y la tabla aparece vacía aunque ya voté en una categoría.");
+                t.setEstado(Estados.TICKET_ABIERTO);
+                t.setCreadoPorId(votante.getId());
+                t.setCreadoPorUsername(votante.getUsername());
+                t.setCreadoPorRol(votante.getRol());
+                t.setFechaCreacion(LocalDateTime.now());
+                t.getHistorial().add(new CambioEstadoTicket(Estados.TICKET_ABIERTO, t.getFechaCreacion(), votante.getUsername()));
+                tickets.save(t);
+            }
+        }
+        if (propuestas.count() == 0) {
+            Usuario representante = usuarios.findByUsername("representante").orElse(null);
+            Jugador jugador = representante == null || representante.getJugadorId() == null
+                    ? null : jugadores.findById(representante.getJugadorId()).orElse(null);
+            if (jugador != null) {
+                PropuestaPerfil p = new PropuestaPerfil();
+                p.setJugadorId(jugador.getId());
+                p.setJugadorNombre(jugador.getNombre());
+                p.setRepresentanteId(representante.getId());
+                p.setRepresentanteUsername(representante.getUsername());
+                p.setBiografia("Capitán de su club, formado en las divisiones menores y máximo goleador de la última temporada.");
+                p.setPartidos(jugador.getPartidos());
+                p.setGoles(jugador.getGoles() == null ? 1 : jugador.getGoles() + 1);
+                p.setAsistencias(jugador.getAsistencias());
+                p.setTrofeos(jugador.getTrofeos());
+                p.setEstado(Estados.PENDIENTE);
+                p.setFecha(LocalDateTime.now());
+                propuestas.save(p);
+            }
+        }
+    }
+
+    private Feedback comentarioDemo(Edicion e, int estrellas, String comentario, String autor, String estado) {
+        Feedback f = new Feedback();
+        f.setEdicionId(e.getId());
+        f.setEdicionNombre(e.getNombre());
+        f.setEstrellas(estrellas);
+        f.setComentario(comentario);
+        f.setAutorNombre(autor);
+        f.setFecha(LocalDateTime.now());
+        f.setEstadoComentario(estado);
+        if (Estados.APROBADA.equals(estado)) {
+            f.setModeradoPor("moderador");
+            f.setModeradoEn(LocalDateTime.now());
+        }
+        return f;
+    }
+
+    // T006: un usuario de prueba por cada rol que no estaba en la semilla original
+    private void asegurarUsuariosDePrueba() {
+        asegurarUsuario("Juana Jurado", "jurado", "jurado123", "JURADO");
+        asegurarUsuario("Andres Auditor", "auditor", "auditor123", "AUDITOR");
+        asegurarUsuario("Marta Moderadora", "moderador", "moderador123", "MODERADOR");
+        asegurarUsuario("Pablo Periodista", "periodista", "periodista123", "PERIODISTA");
+        asegurarUsuario("Rosa Representante", "representante", "representante123", "REPRESENTANTE");
+        asegurarUsuario("Sergio Soporte", "soporte", "soporte123", "SOPORTE");
+    }
+
+    private void asegurarUsuario(String nombre, String username, String password, String rol) {
+        if (usuarios.findByUsername(username).isEmpty()) {
+            usuarios.save(usuario(nombre, username, password, rol, null));
+        }
+    }
+
+    // Los votos y calificaciones que ya existian (semilla) tambien aparecen en el registro del Auditor.
+    // Nunca se copia el nominado elegido ni la nota (C-02).
+    private void migrarAuditoria() {
+        if (auditoria.count() > 0) {
+            return;
+        }
+        Map<String, Usuario> porId = new HashMap<>();
+        for (Usuario u : usuarios.findAll()) {
+            porId.put(u.getId(), u);
+        }
+        for (Voto v : votos.findAll()) {
+            Usuario u = porId.get(v.getVotanteId());
+            if (u != null) {
+                auditoria.save(registro(Auditoria.VOTO, u, v.getEdicionId(), v.getCategoriaId(), v.getFecha()));
+            }
+        }
+        for (Puntaje p : puntajes.findAll()) {
+            Usuario u = porId.get(p.getJuradoId());
+            if (u != null) {
+                auditoria.save(registro(Auditoria.CALIFICACION, u, p.getEdicionId(), p.getCategoriaId(), p.getFecha()));
+            }
+        }
+    }
+
+    private RegistroAuditoria registro(String tipo, Usuario u, String edicionId, String categoriaId, LocalDateTime fecha) {
+        RegistroAuditoria r = new RegistroAuditoria();
+        r.setTipo(tipo);
+        r.setUsuarioId(u.getId());
+        r.setUsername(u.getUsername());
+        r.setRol(u.getRol());
+        r.setEdicionId(edicionId);
+        r.setCategoriaId(categoriaId);
+        r.setCanal("SEMILLA");
+        r.setFecha(fecha != null ? fecha : LocalDateTime.now());
+        return r;
+    }
+
+    // Noticias de demostracion: dos publicadas y un borrador del periodista de prueba
+    private void sembrarNoticias() {
+        if (noticias.count() > 0) {
+            return;
+        }
+        Usuario periodista = usuarios.findByUsername("periodista").orElse(null);
+        if (periodista == null) {
+            return;
+        }
+        Edicion reciente = ediciones.findAll().stream().max(Comparator.comparingInt(Edicion::getAnio)).orElse(null);
+        String edicionId = reciente == null ? null : reciente.getId();
+        noticias.save(noticia(periodista, "Abre la votación del Golden Awards",
+                "Los votantes ya pueden elegir a sus favoritos en cada categoría.",
+                "El periodo de votación está abierto. Cada votante dispone de un único voto por categoría y podrá "
+                        + "consultar su historial desde su panel.\n\nEl jurado también evalúa a los nominados y su "
+                        + "calificación se sumará al ranking oficial.",
+                edicionId, "PUBLICADA"));
+        noticias.save(noticia(periodista, "Así se cuidan los votos: auditoría sin revelar el voto",
+                "Un nuevo rol revisa la actividad de la votación sin saber por quién votó cada persona.",
+                "El Auditor puede ver quién votó y cuándo, detectar intentos de voto duplicado y exportar un reporte. "
+                        + "En ningún momento el registro guarda el nominado elegido: el voto sigue siendo secreto.",
+                edicionId, "PUBLICADA"));
+        noticias.save(noticia(periodista, "Borrador: crónica de la gala",
+                "Aún sin publicar.",
+                "Este texto es un borrador y solo lo ve su autor hasta que se publique.",
+                edicionId, "BORRADOR"));
+    }
+
+    private Noticia noticia(Usuario autor, String titulo, String resumen, String contenido, String edicionId, String estado) {
+        Noticia n = new Noticia();
+        n.setTitulo(titulo);
+        n.setResumen(resumen);
+        n.setContenido(contenido);
+        n.setEdicionId(edicionId);
+        n.setAutorId(autor.getId());
+        n.setAutorNombre(autor.getNombre());
+        n.setEstado(estado);
+        n.setFechaCreacion(LocalDateTime.now());
+        if ("PUBLICADA".equals(estado)) {
+            n.setFechaPublicacion(LocalDateTime.now());
+        }
+        return n;
     }
 
     private Parametro parametro(String clave, String valor, String descripcion) {

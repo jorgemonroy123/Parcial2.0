@@ -18,26 +18,29 @@ import java.util.Optional;
 @RequestMapping("/api/admin")
 public class AdminControladorRest {
 
-    private static final List<String> ROLES = List.of("ADMIN", "ORGANIZADOR", "VOTANTE", "NOMINADO", "JURADO", "PUBLICO");
+    private static final List<String> ROLES = List.of("ADMIN", "ORGANIZADOR", "VOTANTE", "NOMINADO", "JURADO",
+            "AUDITOR", "MODERADOR", "PERIODISTA", "REPRESENTANTE", "SOPORTE", "PUBLICO");
+
+    // Los roles NOMINADO y REPRESENTANTE deben estar vinculados a un jugador del catalogo
+    private boolean necesitaJugador(String rol) {
+        return "NOMINADO".equals(rol) || "REPRESENTANTE".equals(rol);
+    }
 
     private final UsuarioRepository usuarioRepository;
     private final JugadorRepository jugadorRepository;
     private final ParametroRepository parametroRepository;
     private final NominacionRepository nominacionRepository;
     private final VotoRepository votoRepository;
-    private final PuntajeRepository puntajeRepository;
     private final PasswordEncoder passwordEncoder;
 
     public AdminControladorRest(UsuarioRepository usuarioRepository, JugadorRepository jugadorRepository,
                                 ParametroRepository parametroRepository, NominacionRepository nominacionRepository,
-                                VotoRepository votoRepository, PuntajeRepository puntajeRepository,
-                                PasswordEncoder passwordEncoder) {
+                                VotoRepository votoRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.jugadorRepository = jugadorRepository;
         this.parametroRepository = parametroRepository;
         this.nominacionRepository = nominacionRepository;
         this.votoRepository = votoRepository;
-        this.puntajeRepository = puntajeRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -68,7 +71,7 @@ public class AdminControladorRest {
         datos.setId(null);
         datos.setUsername(datos.getUsername().trim());
         datos.setPassword(passwordEncoder.encode(datos.getPassword()));
-        if (!"NOMINADO".equals(datos.getRol())) {
+        if (!necesitaJugador(datos.getRol())) {
             datos.setJugadorId(null);
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioRepository.save(datos));
@@ -91,7 +94,7 @@ public class AdminControladorRest {
         u.setNombre(datos.getNombre());
         u.setUsername(datos.getUsername().trim());
         u.setRol(datos.getRol());
-        u.setJugadorId("NOMINADO".equals(datos.getRol()) ? datos.getJugadorId() : null);
+        u.setJugadorId(necesitaJugador(datos.getRol()) ? datos.getJugadorId() : null);
         u.setActivo(datos.isActivo());
         if (datos.getPassword() != null && !datos.getPassword().isBlank()) {
             u.setPassword(passwordEncoder.encode(datos.getPassword()));
@@ -108,9 +111,8 @@ public class AdminControladorRest {
         if (u.getUsername().equals(principal.getName())) {
             return error(HttpStatus.BAD_REQUEST, "No puedes eliminar tu propia cuenta");
         }
-        if (!votoRepository.findByVotanteId(id).isEmpty() || !nominacionRepository.findByPropuestoPorId(id).isEmpty()
-                || !puntajeRepository.findByJuradoId(id).isEmpty()) {
-            return error(HttpStatus.CONFLICT, "El usuario tiene votos, calificaciones o nominaciones registradas; desactivalo en lugar de eliminarlo");
+        if (!votoRepository.findByVotanteId(id).isEmpty() || !nominacionRepository.findByPropuestoPorId(id).isEmpty()) {
+            return error(HttpStatus.CONFLICT, "El usuario tiene votos o nominaciones registradas; desactivalo en lugar de eliminarlo");
         }
         usuarioRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado"));
@@ -121,9 +123,9 @@ public class AdminControladorRest {
         if (d.getUsername() == null || d.getUsername().isBlank()) return "El nombre de usuario es obligatorio";
         if (d.getRol() == null || !ROLES.contains(d.getRol())) return "Rol no valido. Usa: " + ROLES;
         if (esNuevo && (d.getPassword() == null || d.getPassword().isBlank())) return "La contrasena es obligatoria";
-        if ("NOMINADO".equals(d.getRol())) {
+        if (necesitaJugador(d.getRol())) {
             if (d.getJugadorId() == null || !jugadorRepository.existsById(d.getJugadorId())) {
-                return "Un usuario NOMINADO requiere un jugadorId valido";
+                return "Un usuario NOMINADO o REPRESENTANTE requiere un jugadorId valido";
             }
         }
         Optional<Usuario> existente = usuarioRepository.findByUsername(d.getUsername().trim());
@@ -178,7 +180,7 @@ public class AdminControladorRest {
             return error(HttpStatus.NOT_FOUND, "Jugador no encontrado");
         }
         boolean nominado = !nominacionRepository.findByJugadorId(id).isEmpty();
-        boolean asociado = usuarioRepository.findByRol("NOMINADO").stream().anyMatch(u -> id.equals(u.getJugadorId()));
+        boolean asociado = usuarioRepository.findAll().stream().anyMatch(u -> id.equals(u.getJugadorId()));
         if (nominado || asociado) {
             return error(HttpStatus.CONFLICT, "El jugador tiene nominaciones o un usuario asociado; no se puede eliminar");
         }

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Moderación')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: nav}"></nav>
+
+<main class="container py-4">
+    <div th:replace="~{fragments/layout :: alertas}"></div>
+
+    <div class="page-header fade-up">
+        <div>
+            <h1 class="page-title"><i class="bi bi-shield-check"></i> Moderación de comentarios</h1>
+            <p class="page-sub">Los comentarios del público nacen pendientes y ocultos; solo los aprobados aparecen en la encuesta.</p>
+        </div>
+        <div class="btn-group" role="group">
+            <a th:href="@{/moderador/comentarios(estado='PENDIENTE')}" class="btn btn-outline-gold" th:classappend="${estado == 'PENDIENTE'} ? 'active'">Pendientes</a>
+            <a th:href="@{/moderador/comentarios(estado='APROBADA')}" class="btn btn-outline-gold" th:classappend="${estado == 'APROBADA'} ? 'active'">Aprobados</a>
+            <a th:href="@{/moderador/comentarios(estado='RECHAZADA')}" class="btn btn-outline-gold" th:classappend="${estado == 'RECHAZADA'} ? 'active'">Ocultos</a>
+        </div>
+    </div>
+
+    <div class="glass p-5 text-center text-secondary" th:if="${#lists.isEmpty(comentarios)}">
+        <i class="bi bi-inbox fs-1 text-gold"></i>
+        <p class="mt-2 mb-0">No hay comentarios en esta vista.</p>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6 fade-up" th:each="c : ${comentarios}">
+            <div class="glass p-4 h-100 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <strong th:text="${c.autorNombre}">Autor</strong>
+                        <div class="small text-secondary">
+                            <span th:text="${c.edicionNombre}">Edición</span> ·
+                            <span th:replace="~{fragments/layout :: fecha(${c.fecha})}"></span>
+                        </div>
+                    </div>
+                    <span class="text-gold">
+                        <i class="bi bi-star-fill" th:if="${c.estrellas > 0}" th:each="i : ${#numbers.sequence(1, c.estrellas)}"></i>
+                    </span>
+                </div>
+                <p class="flex-grow-1" style="white-space: pre-line;" th:text="${c.comentario}">Comentario</p>
+                <div class="small text-secondary mb-2" th:if="${c.moderadoPor != null}">
+                    <i class="bi bi-person-check"></i> <span th:text="${c.moderadoPor}">moderador</span> ·
+                    <span th:replace="~{fragments/layout :: fecha(${c.moderadoEn})}"></span>
+                </div>
+                <form th:action="@{/moderador/comentarios/{id}/estado(id=${c.id})}" method="post" class="d-flex gap-2">
+                    <input type="hidden" name="filtro" th:value="${estado}">
+                    <button type="submit" name="estado" value="APROBADA" class="btn btn-sm btn-outline-success"
+                            th:if="${c.estadoComentario != 'APROBADA'}"><i class="bi bi-check-lg"></i> Aprobar</button>
+                    <button type="submit" name="estado" value="RECHAZADA" class="btn btn-sm btn-outline-danger"
+                            th:if="${c.estadoComentario != 'RECHAZADA'}"><i class="bi bi-eye-slash-fill"></i> Ocultar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/layout :: footer}"></footer>
+<th:block th:replace="~{fragments/layout :: scripts}"></th:block>
+</body>
+</html>

@@ -1,5 +1,6 @@
 package com.goldenawards.controller;
 
+import com.goldenawards.config.Estados;
 import com.goldenawards.model.*;
 import com.goldenawards.repository.*;
 import org.springframework.stereotype.Controller;
@@ -180,7 +181,10 @@ public class PublicoControladorWeb {
     @GetMapping("/feedback")
     public String feedbackForm(Model model) {
         model.addAttribute("ediciones", edicionRepository.findAll());
-        model.addAttribute("feedbacks", feedbackRepository.findAllByOrderByFechaDesc());
+        // REQ-MOD-003: el publico solo ve los comentarios aprobados (o las calificaciones sin comentario)
+        model.addAttribute("feedbacks", feedbackRepository.findAllByOrderByFechaDesc().stream()
+                .filter(Estados::comentarioPublico)
+                .collect(java.util.stream.Collectors.toList()));
         return "publico/feedback";
     }
 
@@ -203,8 +207,12 @@ public class PublicoControladorWeb {
         f.setComentario(comentario);
         f.setAutorNombre(autorNombre != null && !autorNombre.isBlank() ? autorNombre : "Anónimo");
         f.setFecha(LocalDateTime.now());
+        // REQ-MOD-001: un comentario nuevo queda PENDIENTE y oculto hasta que un Moderador lo apruebe
+        f.setEstadoComentario(Estados.estadoInicialComentario(comentario));
         feedbackRepository.save(f);
-        ra.addFlashAttribute("mensaje", "¡Gracias por tu opinión!");
+        ra.addFlashAttribute("mensaje", Estados.tieneComentario(f)
+                ? "¡Gracias! Tu comentario se publicará cuando un moderador lo apruebe."
+                : "¡Gracias por tu opinión!");
         ra.addFlashAttribute("tipo", "success");
         return "redirect:/publico/feedback";
     }
